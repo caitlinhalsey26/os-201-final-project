@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #faf8ef;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            background-color: #333;
+            padding: 20px 30px;
+            display: flex;
+            flex-direction: row;
+            position:fixed;
+            top: 20px;
+            right: 20px;
+            width: auto;
+            box-sizing: border-box;
+            border: 2px solid #444;
+            border-radius: 5px;
+            font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+            z-index: 1000;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            font-size: medium;
+            display: block;
+        }
+
+        .navbar a:hover {
+            background-color: #575757;
+            border-radius: 5px;
+        }
+
+        .title {
+            position: absolute;
+            top: 110px;
+            left: 50%;
+            transform: translate(-50%);
+            font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+            font-size: 5rem;
+            font-weight: bold;
+            color: darkgoldenrod;
+            z-index: 100;
+        }
+
+
+        #game-container-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            margin-top: 120px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #game-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 1vw;
+            background: #bbada0;
+            padding: 1vw;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+            width: 90vw;
+            max-width: 400px;
+            height: 90vw;
+            max-height: 400px;
+            position: relative;
+        }
+
+        .tile {
+            background: #cdc1b4;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2vw;
+            font-weight: bold;
+            color: #776e65;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .tile[data-value="2"] { background: #eee4da; color: #776e65; }
+        .tile[data-value="4"] { background: #ede0c8; color: #776e65; }
+        .tile[data-value="8"] { background: #f2b179; color: #f9f6f2; }
+        .tile[data-value="16"] { background: #f59563; color: #f9f6f2; }
+        .tile[data-value="32"] { background: #f67c5f; color: #f9f6f2; }
+        .tile[data-value="64"] { background: #f65e3b; color: #f9f6f2; }
+        .tile[data-value="128"] { background: #edcf72; color: #f9f6f2; }
+        .tile[data-value="256"] { background: #edcc61; color: #f9f6f2; }
+        .tile[data-value="512"] { background: #edc850; color: #f9f6f2; }
+        .tile[data-value="1024"] { background: #edc53f; color: #f9f6f2; }
+        .tile[data-value="2048"] { background: #edc22e; color: #f9f6f2; }
+        .tile.merge {
+            transform: scale(1.2);
+        }
+
+        #game-over-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 2rem;
+            border-radius: 10px;
+            z-index: 10;
+            visibility: hidden;
+        }
+
+        #game-over-modal.visible {
+            visibility: visible;
+        }
+
+        #try-again-btn {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: #f67c5f;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        #try-again-btn:hover {
+            background: #f65e3b;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <a href="../index.html" target="_blank">resume page</a>
+        <a href="../camel website/camel-website.html" target="_blank">camel website</a>
+        <a href="../camel website/otherpage.html" target="_blank">other page</a>
+    </div>
+
+    <div class="title">2048</div>
+
+    <div id="game-container-wrapper">
+        <div id="game-container">
+            <div id="game-over-modal">
+                <div>Game Over</div>
+                <button id="try-again-btn">Try Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SIZE = 4;
+        const container = document.getElementById('game-container');
+        const modal = document.getElementById('game-over-modal');
+        const tryAgainBtn = document.getElementById('try-again-btn');
+        let grid;
+
+        function createGrid() {
+            grid = Array(SIZE).fill(null).map(() => Array(SIZE).fill(0));
+            container.innerHTML = '';
+            container.appendChild(modal);
+            for (let i = 0; i < SIZE * SIZE; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                container.appendChild(tile);
+            }
+            addRandomTile();
+            addRandomTile();
+            updateGrid();
+        }
+
+        function addRandomTile() {
+            const emptyTiles = [];
+            for (let row = 0; row < SIZE; row++) {
+                for (let col = 0; col < SIZE; col++) {
+                    if (grid[row][col] === 0) emptyTiles.push({ row, col });
+                }
+            }
+            if (emptyTiles.length === 0) return;
+            const { row, col } = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
+            grid[row][col] = Math.random() > 0.1 ? 2 : 4;
+        }
+
+        function updateGrid() {
+            const tiles = document.getElementsByClassName('tile');
+            for (let i = 0; i < SIZE * SIZE; i++) {
+                const row = Math.floor(i / SIZE);
+                const col = i % SIZE;
+                const value = grid[row][col];
+                tiles[i].textContent = value === 0 ? '' : value;
+                tiles[i].dataset.value = value;
+                tiles[i].classList.remove('merge');
+            }
+        }
+
+        function slide(row) {
+            let arr = row.filter(val => val !== 0);
+            for (let i = 0; i < arr.length - 1; i++) {
+                if (arr[i] === arr[i + 1]) {
+                    arr[i] *= 2;
+                    arr[i + 1] = 0;
+                }
+            }
+            arr = arr.filter(val => val !== 0);
+            while (arr.length < SIZE) arr.push(0);
+            return arr;
+        }
+
+        function slideLeft() {
+            for (let row = 0; row < SIZE; row++) {
+                grid[row] = slide(grid[row]);
+            }
+        }
+
+        function slideRight() {
+            for (let row = 0; row < SIZE; row++) {
+                grid[row] = slide(grid[row].reverse()).reverse();
+            }
+        }
+
+        function slideUp() {
+            for (let col = 0; col < SIZE; col++) {
+                let column = [];
+                for (let row = 0; row < SIZE; row++) {
+                    column.push(grid[row][col]);
+                }
+                column = slide(column);
+                for (let row = 0; row < SIZE; row++) {
+                    grid[row][col] = column[row];
+                }
+            }
+        }
+
+        function slideDown() {
+            for (let col = 0; col < SIZE; col++) {
+                let column = [];
+                for (let row = 0; row < SIZE; row++) {
+                    column.push(grid[row][col]);
+                }
+                column = slide(column.reverse()).reverse();
+                for (let row = 0; row < SIZE; row++) {
+                    grid[row][col] = column[row];
+                }
+            }
+        }
+
+        function checkGameOver() {
+            for (let row = 0; row < SIZE; row++) {
+                for (let col = 0; col < SIZE; col++) {
+                    if (grid[row][col] === 0) return false;
+                    if (col < SIZE - 1 && grid[row][col] === grid[row][col + 1]) return false;
+                    if (row < SIZE - 1 && grid[row][col] === grid[row + 1][col]) return false;
+                }
+            }
+            return true;
+        }
+
+        function showGameOver() {
+            modal.classList.add('visible');
+        }
+
+        function handleKeyPress(event) {
+            event.preventDefault();
+            const key = event.key;
+            let moved = false;
+            switch (key) {
+                case 'ArrowLeft':
+                    slideLeft();
+                    moved = true;
+                    break;
+                case 'ArrowRight':
+                    slideRight();
+                    moved = true;
+                    break;
+                case 'ArrowUp':
+                    slideUp();
+                    moved = true;
+                    break;
+                case 'ArrowDown':
+                    slideDown();
+                    moved = true;
+                    break;
+            }
+            if (moved) {
+                addRandomTile();
+                updateGrid();
+                if (checkGameOver()) showGameOver();
+            }
+        }
+
+        tryAgainBtn.addEventListener('click', () => {
+            modal.classList.remove('visible');
+            createGrid();
+        });
+
+        window.addEventListener('keydown', handleKeyPress);
+        createGrid();
+    </script>
+</body>
+</html>
